@@ -1,6 +1,6 @@
-# RDoC Behavioral Matrix Updater
+# Iterative RDoC Behavioral QC Matrix  
 
-This script processes and updates behavioral matrix files for RDoC (Research Domain Criteria) tasks. It handles multiple tasks including go/nogo, stop signal, visual search, and others.
+This script updates the quality control matrix of RDoC behavioral tasks in large (n=500) online data aquisition. It updates each of the 12 files (one per cognitive task) to include new subjects and metrics in line with changes made to the rdoc-beh repo. 
 
 ## Features
 
@@ -8,7 +8,6 @@ This script processes and updates behavioral matrix files for RDoC (Research Dom
 - Filters data based on pristine subjects
 - Excludes specific subjects as needed
 - Calculates summary statistics
-- Maintains data integrity across sessions
 
 ## Requirements
 

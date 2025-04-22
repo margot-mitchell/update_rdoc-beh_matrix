@@ -172,7 +172,11 @@ for old_filename in old_csv_filenames:
         if 'attention_check accuracy' in updated_data.columns:
             updated_data = updated_data.drop(columns=['attention_check accuracy'])
         
-        # 2. Reorder columns to place attention_check_mean_accuracy and attention_check_mean_rt
+        # 2. Delete attention_check_mean_response_time if it exists
+        if 'attention_check_mean_response_time' in updated_data.columns:
+            updated_data = updated_data.drop(columns=['attention_check_mean_response_time'])
+        
+        # 3. Reorder columns to place attention_check_mean_accuracy and attention_check_mean_rt
         # between proportion_feedback and session
         if 'proportion_feedback' in updated_data.columns and 'session' in updated_data.columns:
             columns = updated_data.columns.tolist()
@@ -241,7 +245,7 @@ for task_name, df in processed_dataframes.items():
         df = pd.concat([df, summary_rows, column_names_row], ignore_index=True)
         
         # Save the updated DataFrame to a new CSV file
-        output_file_path = os.path.join(output_directory, f'rdoc behavioral matrix - {task_name}_with_notes.csv')
+        output_file_path = os.path.join(output_directory, f'{task_name}_with_notes.csv')
         df.to_csv(output_file_path, index=False)
     except Exception as e:
         print(f"Error saving {task_name}: {str(e)}")

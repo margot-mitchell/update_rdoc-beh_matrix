@@ -28,7 +28,7 @@ This script processes and updates behavioral matrix files for RDoC (Research Dom
 ## Configuration
 
 The script uses the following paths:
-- Input directory: `/Users/marg0tm/rdoc-beh/results/wide`
+- Input directory: `/path/to/rdoc_beh/results/wide`
 - Old matrix directory: `~/Desktop/rdoc_behavioral_matrix_old/`
 - Output directory: `new_rdoc_behavioral_matrix`
 - Desktop output directory: `~/Desktop/new_rdoc_behavioral_matrix`
@@ -58,7 +58,7 @@ The script uses the following paths:
    - Generate QC files
 
 2. Verify that the processed data is in the correct location:
-   - The script expects QC files to be in `/Users/marg0tm/rdoc-beh/results/wide/`
+   - The script expects QC files to be in `/path/to/rdoc_beh/results/wide/`
    - If your data is in a different location, update the `input_directory` path in `main.py`
 
 ### 2. Existing Matrix Files
@@ -132,11 +132,73 @@ If you encounter any issues:
 1. Verify all file paths in `main.py` are correct
 2. Ensure all required packages are installed
 3. Check that input files are in the correct format
-4. Make sure the pristine subjects JSON file exists at `/Users/marg0tm/rdoc-beh/qa/pristine_subjects.json`
+4. Make sure the pristine subjects JSON file exists at `/path/to/rdoc_beh/qa/pristine_subjects.json`
 
 ## Notes
 
 - The script preserves existing data while adding new rows
 - Numbers are formatted to show whole numbers without decimals and decimal numbers with up to 4 decimal places
 - Summary statistics are calculated only once at the end
-- Column names appear only at the top (header) and bottom of each file 
+- Column names appear only at the top (header) and bottom of each file
+
+## Update RDoC Behavioral Matrix
+
+This repository contains scripts to update the RDoC behavioral matrix by adding new subject data while ensuring data integrity and proper formatting.
+
+## Setup
+
+1. Clone the repository:
+```bash
+git clone https://github.com/margot-mitchell/update_rdoc-beh_matrix.git
+cd update_rdoc-beh_matrix
+```
+
+2. Create and activate a virtual environment:
+```bash
+python -m venv .venv
+source .venv/bin/activate  # On Unix/macOS
+# or
+.venv\Scripts\activate  # On Windows
+```
+
+3. Install required packages:
+```bash
+pip install -r requirements.txt
+```
+
+## Usage
+
+1. Ensure you have the following files in place:
+   - `pristine_subjects.json` in the `/path/to/rdoc_beh/qa/` directory
+   - Old matrix files in the `rdoc_behavioral_matrix_old` directory
+   - New data files in the `rdoc_behavioral_matrix` directory
+
+2. Run the script:
+```bash
+python main.py
+```
+
+The script will:
+- Load pristine subjects from the JSON file
+- Process CSV files from both old and new directories
+- Filter new rows based on pristine subjects
+- Calculate summary statistics for each task
+- Save updated files to the `new_rdoc_behavioral_matrix` directory
+
+## Output
+
+The script generates updated CSV files in the `new_rdoc_behavioral_matrix` directory, with:
+- All subjects listed first
+- Summary statistics calculated from task-specific data
+- Column names listed once at the end of each file
+
+## Requirements
+
+- Python 3.x
+- pandas
+- numpy
+- json
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details. 

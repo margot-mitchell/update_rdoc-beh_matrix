@@ -10,6 +10,18 @@ old_matrix_directory = os.path.expanduser('~/Desktop/rdoc_behavioral_matrix_old/
 output_directory = 'new_rdoc_behavioral_matrix'  # Directory to save the updated CSV files
 desktop_output_directory = os.path.expanduser('~/Desktop/new_rdoc_behavioral_matrix')  # Directory on desktop to save the files
 
+# Function to remove empty columns and rows
+def remove_empty(df):
+    # Remove columns that are entirely empty or contain only NaN/None/empty strings
+    df = df.dropna(axis=1, how='all')
+    df = df.loc[:, ~(df.astype(str) == '').all()]
+    
+    # Remove rows that are entirely empty or contain only NaN/None/empty strings
+    df = df.dropna(axis=0, how='all')
+    df = df.loc[~(df.astype(str) == '').all(axis=1)]
+    
+    return df
+
 # Function to format numbers
 def format_number(x):
     if pd.isna(x) or isinstance(x, str):
@@ -28,12 +40,13 @@ def update_values_with_new_data(old_df, new_df):
     # Create a copy of the old dataframe to avoid modifying it directly
     updated_df = old_df.copy()
     
-    # If attention_check_mean_accuracy column doesn't exist in old_df, add it
-    if 'attention_check_mean_accuracy' not in updated_df.columns:
-        # Find the position of 'session' column
-        session_idx = updated_df.columns.get_loc('session')
-        # Insert the new column before 'session'
-        updated_df.insert(session_idx, 'attention_check_mean_accuracy', None)
+    # Add any columns from new_df that don't exist in old_df
+    for col in new_df.columns:
+        if col not in updated_df.columns:
+            # Find the position of 'session' column
+            session_idx = updated_df.columns.get_loc('session')
+            # Insert the new column before 'session'
+            updated_df.insert(session_idx, col, None)
     
     # Iterate through each row in the new dataframe
     for _, new_row in new_df.iterrows():
@@ -58,8 +71,42 @@ with open('/Users/marg0tm/rdoc-beh/qa/pristine_subjects.json', 'r') as f:
     pristine_subjects = json.load(f)
 pristine_ids = set(pristine_subjects['ids'])
 
+# Load excluded subjects
+excluded_ids = set()
+if os.path.exists('excluded_subjects.json'):
+    with open('excluded_subjects.json', 'r') as f:
+        excluded_subjects = json.load(f)
+        excluded_ids = set(excluded_subjects.get('ids', []))
+
 # Create output directory if it doesn't exist
 os.makedirs(output_directory, exist_ok=True)
+
+# Define expected task names
+expected_tasks = [
+    'spatial_task_switching',
+    'stop_signal',
+    'go_nogo',
+    'visual_search',
+    'simple_span',
+    'cued_task_switching',
+    'flanker',
+    'stroop',
+    'n_back',
+    'spatial_cueing',
+    'operation_span',
+    'ax_cpt'
+]
+
+# Check files in old matrix directory
+old_matrix_files = [f for f in os.listdir(old_matrix_directory) if f.endswith('.csv')]
+if len(old_matrix_files) > 12:
+    raise ValueError("too many files")
+
+# Check that each task has exactly one corresponding file
+for task in expected_tasks:
+    matching_files = [f for f in old_matrix_files if task in f.lower()]
+    if len(matching_files) == 0:
+        raise ValueError(f"missing {task}")
 
 # Collect existing subject IDs from old matrix files
 existing_subjects = set()
@@ -82,6 +129,9 @@ for file in os.listdir(input_directory):
             # Read the new data
             new_data = pd.read_csv(os.path.join(input_directory, file))
             
+            # Remove empty columns and rows from new data
+            new_data = remove_empty(new_data)
+            
             # Format numerical columns in new data
             for col in new_data.columns:
                 if new_data[col].dtype in [np.float64, np.int64]:
@@ -89,20 +139,25 @@ for file in os.listdir(input_directory):
             
             # Find corresponding old matrix file
             task_name = file.replace('.csv', '')
-            old_file = f"rdoc behavioral matrix - {task_name}_with_notes.csv"
+            # Try both naming conventions
+            old_file = f"{task_name}_with_notes.csv"
             old_file_path = os.path.join(old_matrix_directory, old_file)
+            if not os.path.exists(old_file_path):
+                old_file = f"rdoc behavioral matrix - {task_name}_with_notes.csv"
+                old_file_path = os.path.join(old_matrix_directory, old_file)
             
             if os.path.exists(old_file_path):
                 # Read the old data
                 old_data = pd.read_csv(old_file_path)
                 
-                # Remove the last row if it contains column names
-                if old_data.iloc[-1].equals(old_data.columns):
-                    old_data = old_data.iloc[:-1]
+                # Remove empty columns and rows from old data
+                old_data = remove_empty(old_data)
                 
-                # Remove any rows that contain column names or summary statistics
+                # Remove any rows that contain column names
+                old_data = old_data[~old_data.apply(lambda row: row.astype(str).isin(old_data.columns).any(), axis=1)]
+                
+                # Remove summary statistics rows if they exist
                 old_data = old_data[~old_data['sub_id'].isin(['Mean', 'SD', 'Max', 'Min'])]
-                old_data = old_data[~old_data['sub_id'].isin(old_data.columns)]
                 
                 # Remove attention_check_mean_rt column if it exists
                 if 'attention_check_mean_rt' in old_data.columns:
@@ -118,9 +173,10 @@ for file in os.listdir(input_directory):
                 # Update values in old dataframe with new data
                 updated_data = update_values_with_new_data(old_data, new_data)
                 
-                # For new subjects (not in existing_subjects), only include pristine ones
+                # For new subjects (not in existing_subjects), only include pristine ones and exclude specified subjects
                 new_rows = new_data[~new_data['sub_id'].isin(existing_subjects)]
                 new_rows = new_rows[new_rows['sub_id'].isin(pristine_ids)]
+                new_rows = new_rows[~new_rows['sub_id'].isin(excluded_ids)]
                 
                 if not new_rows.empty:
                     print(f"Found {len(new_rows)} new rows for {file}")
@@ -132,7 +188,7 @@ for file in os.listdir(input_directory):
                 end_col = 'session'
                 start_idx = updated_data.columns.get_loc(start_col)
                 end_idx = updated_data.columns.get_loc(end_col)
-                stats_cols = updated_data.columns[start_idx:end_idx + 1]
+                stats_cols = updated_data.columns[start_idx:end_idx]  # Exclude session column
                 
                 # Create a temporary dataframe for calculations
                 calc_df = updated_data.copy()
@@ -162,8 +218,11 @@ for file in os.listdir(input_directory):
                 column_names = pd.DataFrame([updated_data.columns], columns=updated_data.columns)
                 updated_data = pd.concat([updated_data, column_names], ignore_index=True)
                 
-                # Save the updated dataframe
-                output_file = os.path.join(output_directory, old_file)
+                # Remove any empty columns and rows from the final output
+                updated_data = remove_empty(updated_data)
+                
+                # Save the updated dataframe with new naming convention
+                output_file = os.path.join(output_directory, f"{task_name}_with_notes.csv")
                 updated_data.to_csv(output_file, index=False)
                 print(f"Saved updated data to {output_file}")
             else:

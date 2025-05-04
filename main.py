@@ -57,6 +57,9 @@ def update_values_with_new_data(old_df, new_df):
             # Update all columns that exist in both dataframes
             for col in new_row.index:
                 if col in updated_df.columns:
+                    # Skip updating RC comments if the new value is empty
+                    if col == 'RC comments' and (pd.isna(new_row[col]) or new_row[col] == ''):
+                        continue
                     updated_df.loc[mask, col] = new_row[col]
     
     # Format all numerical columns to 4 decimal places
@@ -65,6 +68,30 @@ def update_values_with_new_data(old_df, new_df):
             updated_df[col] = updated_df[col].apply(format_number)
     
     return updated_df
+
+def reorder_columns(df):
+    # Define the columns that should come at the end
+    end_metrics = ['proportion_feedback']
+    end_check_cols = ['attention_check_mean_accuracy', 'session']
+    comment_columns = [col for col in df.columns if 'comment' in col.lower() or col in ['PB', 'RC notes', 'checked', 'pb checked', 'MM follow up', 'PB notes']]
+    
+    # Get all columns that are not in special columns
+    metric_columns = [col for col in df.columns if col not in end_metrics + end_check_cols + comment_columns]
+    
+    # Ensure sub_id and date_time are first
+    if 'sub_id' in metric_columns:
+        metric_columns.remove('sub_id')
+    if 'date_time' in metric_columns:
+        metric_columns.remove('date_time')
+    
+    # Combine all columns in the desired order
+    ordered_columns = ['sub_id', 'date_time'] + metric_columns + end_metrics + end_check_cols + comment_columns
+    
+    # Only include columns that exist in the dataframe
+    ordered_columns = [col for col in ordered_columns if col in df.columns]
+    
+    # Reorder the dataframe
+    return df[ordered_columns]
 
 # Load pristine subjects
 with open('/Users/marg0tm/rdoc-beh/qa/pristine_subjects.json', 'r') as f:
@@ -182,6 +209,9 @@ for file in os.listdir(input_directory):
                     print(f"Found {len(new_rows)} new rows for {file}")
                     # Add new rows to the updated dataframe
                     updated_data = pd.concat([updated_data, new_rows], ignore_index=True)
+                
+                # Reorder columns to ensure task-specific metrics are in the correct position
+                updated_data = reorder_columns(updated_data)
                 
                 # Get the columns between date_time and session
                 start_col = 'date_time'

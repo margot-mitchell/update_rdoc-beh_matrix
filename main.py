@@ -93,17 +93,15 @@ def reorder_columns(df):
     # Reorder the dataframe
     return df[ordered_columns]
 
-# Load pristine subjects
-with open('/Users/marg0tm/rdoc-beh/qa/pristine_subjects.json', 'r') as f:
-    pristine_subjects = json.load(f)
-pristine_ids = set(pristine_subjects['ids'])
+# Load okay subjects
+with open('/Users/marg0tm/rdoc-beh/qa/okay_subjects.json', 'r') as f:
+    okay_subjects = json.load(f)
+okay_ids = set(okay_subjects['ids'])
 
-# Load excluded subjects
-excluded_ids = set()
-if os.path.exists('excluded_subjects.json'):
-    with open('excluded_subjects.json', 'r') as f:
-        excluded_subjects = json.load(f)
-        excluded_ids = set(excluded_subjects.get('ids', []))
+# Load excluded subjects from JSON config
+with open('excluded_subjects_config.json', 'r') as f:
+    excluded_config = json.load(f)
+excluded_ids = set([subject['id'] for subject in excluded_config['excluded_subjects']])
 
 # Create output directory if it doesn't exist
 os.makedirs(output_directory, exist_ok=True)
@@ -200,9 +198,9 @@ for file in os.listdir(input_directory):
                 # Update values in old dataframe with new data
                 updated_data = update_values_with_new_data(old_data, new_data)
                 
-                # For new subjects (not in existing_subjects), only include pristine ones and exclude specified subjects
+                # For new subjects (not in existing_subjects), only include okay ones and exclude specified subjects
                 new_rows = new_data[~new_data['sub_id'].isin(existing_subjects)]
-                new_rows = new_rows[new_rows['sub_id'].isin(pristine_ids)]
+                new_rows = new_rows[new_rows['sub_id'].isin(okay_ids)]
                 new_rows = new_rows[~new_rows['sub_id'].isin(excluded_ids)]
                 
                 if not new_rows.empty:

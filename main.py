@@ -75,8 +75,11 @@ def reorder_columns(df):
     end_check_cols = ['attention_check_mean_accuracy', 'session']
     comment_columns = [col for col in df.columns if 'comment' in col.lower() or col in ['PB', 'RC notes', 'checked', 'pb checked', 'MM follow up', 'PB notes']]
     
+    # Find Exclude/Include columns and move them to the very end
+    exclude_include_columns = [col for col in df.columns if 'exclude' in col.lower() or 'include' in col.lower()]
+    
     # Get all columns that are not in special columns
-    metric_columns = [col for col in df.columns if col not in end_metrics + end_check_cols + comment_columns]
+    metric_columns = [col for col in df.columns if col not in end_metrics + end_check_cols + comment_columns + exclude_include_columns]
     
     # Ensure sub_id and date_time are first
     if 'sub_id' in metric_columns:
@@ -85,7 +88,7 @@ def reorder_columns(df):
         metric_columns.remove('date_time')
     
     # Combine all columns in the desired order
-    ordered_columns = ['sub_id', 'date_time'] + metric_columns + end_metrics + end_check_cols + comment_columns
+    ordered_columns = ['sub_id', 'date_time'] + metric_columns + end_metrics + end_check_cols + comment_columns + exclude_include_columns
     
     # Only include columns that exist in the dataframe
     ordered_columns = [col for col in ordered_columns if col in df.columns]
@@ -132,6 +135,8 @@ for task in expected_tasks:
     matching_files = [f for f in old_matrix_files if task in f.lower()]
     if len(matching_files) == 0:
         raise ValueError(f"missing {task}")
+    elif len(matching_files) > 1:
+        print(f"Warning: Multiple files found for {task}: {matching_files}")
 
 # Collect existing subject IDs from old matrix files
 existing_subjects = set()
@@ -162,14 +167,17 @@ for file in os.listdir(input_directory):
                 if new_data[col].dtype in [np.float64, np.int64]:
                     new_data[col] = new_data[col].apply(format_number)
             
-            # Find corresponding old matrix file
+            # Find corresponding old matrix file by task name
             task_name = file.replace('.csv', '')
-            # Try both naming conventions
-            old_file = f"{task_name}_with_notes.csv"
-            old_file_path = os.path.join(old_matrix_directory, old_file)
-            if not os.path.exists(old_file_path):
-                old_file = f"rdoc behavioral matrix - {task_name}_with_notes.csv"
+            matching_old_files = [f for f in old_matrix_files if task_name in f.lower()]
+            
+            if matching_old_files:
+                old_file = matching_old_files[0]  # Take the first matching file
                 old_file_path = os.path.join(old_matrix_directory, old_file)
+                print(f"Found matching old file: {old_file}")
+            else:
+                print(f"Warning: Could not find corresponding old matrix file for {file}")
+                continue
             
             if os.path.exists(old_file_path):
                 # Read the old data
